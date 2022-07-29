@@ -1,4 +1,6 @@
+import 'package:app_medidores_inteligentes/src/colors.dart';
 import 'package:app_medidores_inteligentes/src/pages/home_page.dart';
+import 'package:app_medidores_inteligentes/src/pages/main_page/main_page.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -14,11 +16,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primaryColor: primary,
       ),
       initialRoute: "/",
       routes: {
-        "/": (context) => const HomePage(),
+        "/": (_) => const HomePage(),
+        "/main": (_) => const MainPage(),
       },
     );
   }

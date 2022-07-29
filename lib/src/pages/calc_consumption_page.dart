@@ -1,8 +1,9 @@
 import 'dart:async';
 
+import 'package:app_medidores_inteligentes/src/colors.dart';
+import 'package:app_medidores_inteligentes/src/components/button.dart';
 import 'package:app_medidores_inteligentes/src/data/get_consumption.dart';
 import 'package:flutter/material.dart';
-import 'package:simple_timer/simple_timer.dart';
 
 class CalcConsumptionPage extends StatefulWidget {
   final double normalConsumption;
@@ -15,82 +16,44 @@ class CalcConsumptionPage extends StatefulWidget {
 class _CalcConsumptionPageState extends State<CalcConsumptionPage> {
   final initialDate = DateTime.now();
   List<double> consumptionPerMinuteList = [];
-  late TimerController _timerController;
+  double consumptionPerMinute = 0;
+  double consumptionTotal = 0;
+  double eletronicConsumptionLastMinute = 0;
+  double eletronicConsumptionTotal = 0;
+  double priceConsumptionTotal = 0;
+  double priceEletronicConsumption = 0;
 
   final Stream<Future<double>> _myStream =
-      Stream.periodic(const Duration(seconds: 6), (int count) async {
-    final showerConsuption = await getShowerConsumption();
-    final otherConsumptions = await getConsumption();
-    return showerConsuption + otherConsumptions;
+      Stream.periodic(const Duration(seconds: 5), (int count) async {
+    final consumption = await getConsumption();
+    return consumption['last_minute_consumption'];
   });
   late StreamSubscription _sub;
 
-  // finalize calc consumption per minute
-  Future<void> _calcConsumptionPerMinuteList() async {
-    _sub.cancel();
-    double consumptionMedia = 0;
-    for (var i = 0; i < consumptionPerMinuteList.length; i++) {
-      consumptionMedia += consumptionPerMinuteList[i];
+  void _calcValues(double value) {
+    List<double> temp = consumptionPerMinuteList;
+    if (temp.isEmpty || temp.last != value) {
+      temp.add(value);
     }
-    final consumptionPerMinute =
-        consumptionMedia / consumptionPerMinuteList.length;
-
-    final showerConsumption = consumptionPerMinute - widget.normalConsumption;
-
-    final showerConsumptionTotal = consumptionMedia -
-        (consumptionPerMinuteList.length * widget.normalConsumption);
-
-    print("Consumo médio por minuto: $consumptionPerMinute");
-
-    print(
-        "Consumo total: $consumptionMedia no período de ${consumptionPerMinuteList.length} minutos");
-
-    print(
-        "Seu chuveiro está consumindo cerca de $showerConsumption por minuto");
-
-    showDialog<String>(
-        context: context,
-        builder: (BuildContext context) => AlertDialog(
-              title: const Text('Cálculo finalizado!'),
-              content: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  Text(
-                      "Seu chuveiro está consumindo cerca de ${showerConsumption.toStringAsFixed(3)} kW por minuto \n"),
-                  const SizedBox(
-                    height: 4,
-                  ),
-                  Text(
-                      "Consumo médio total por minuto: ${consumptionPerMinute.toStringAsFixed(3)} kW \n"),
-                  const SizedBox(height: 4),
-                  Text(
-                      "Custo do banho: (apenas chuveiro) R\$ ${(showerConsumptionTotal * 0.624351).toStringAsFixed(2)}  \n"),
-                  const SizedBox(height: 4),
-                  Text(
-                      "Consumo total: ${consumptionMedia.toStringAsFixed(3)} kW no período de ${consumptionPerMinuteList.length} minutos"),
-                ],
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Beleza!'),
-                ),
-              ],
-            ));
+    setState(() {
+      consumptionPerMinuteList = temp;
+      consumptionPerMinute = value * 1000;
+      consumptionTotal = consumptionPerMinuteList.reduce((a, b) => a + b);
+      eletronicConsumptionLastMinute =
+          (value - widget.normalConsumption) * 1000;
+      eletronicConsumptionTotal =
+          consumptionTotal - (widget.normalConsumption * temp.length);
+      priceConsumptionTotal = consumptionTotal * 0.636639;
+      priceEletronicConsumption = eletronicConsumptionTotal * 0.636639;
+    });
   }
 
   @override
   void initState() {
+    consumptionPerMinute = widget.normalConsumption * 1000;
     _sub = _myStream.listen((event) async {
       final res = await event;
-      var temp = consumptionPerMinuteList;
-      temp.add(res);
-      setState(() {
-        consumptionPerMinuteList = temp;
-      });
+      _calcValues(res);
     });
     super.initState();
   }
@@ -106,18 +69,49 @@ class _CalcConsumptionPageState extends State<CalcConsumptionPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calculando consumo'),
+        backgroundColor: secondary,
       ),
       body: Center(
         child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
-                ElevatedButton(
+                const Text(
+                  'Consumo por mês em kWh',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                            'Seu consumo no último minuto foi de: ${consumptionPerMinute.toStringAsFixed(2)} Wh'),
+                        const SizedBox(height: 20),
+                        Text(
+                            'Seu consumo total foi de: ${consumptionTotal.toStringAsFixed(2)} kWh'),
+                        const SizedBox(height: 20),
+                        Text(
+                            'Seu consumo total foi de: R\$ ${priceConsumptionTotal.toStringAsFixed(2)}'),
+                        const SizedBox(height: 20),
+                        Text(
+                            'O consumo do eletrônico no último minuto foi de: ${eletronicConsumptionLastMinute.toStringAsFixed(2)} Wh'),
+                        const SizedBox(height: 20),
+                        Text(
+                            'O consumo do eletrônico no total foi de: ${eletronicConsumptionTotal.toStringAsFixed(2)} kWh'),
+                        const SizedBox(height: 20),
+                        Text(
+                            'O consumo do eletrônico no total foi de: R\$ ${priceEletronicConsumption.toStringAsFixed(2)}'),
+                        const SizedBox(height: 20),
+                      ]),
+                ),
+                Button(
                     onPressed: () async {
-                      await _calcConsumptionPerMinuteList();
+                      await _sub.cancel();
                     },
-                    child: const Text("Finalzar cálculo")),
-                Text('${consumptionPerMinuteList.length.toString()} min'),
+                    text: "Finalzar cálculo"),
+                Text('${consumptionPerMinuteList.length.toString()} minutos'),
               ],
             )),
       ),
